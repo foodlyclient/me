@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Rejoindre la Police Nationale RP</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+}
+
+header {
+    background: #0d2b54;
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    align-items: center;
+}
+
+header .logo {
+    font-weight: bold;
+    font-size: 22px;
+}
+
+header nav {
+    margin-left: auto;
+}
+
+header nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 20px;
+    font-size: 14px;
+}
+
+/* HERO */
+.hero {
+    background: url("https://images.unsplash.com/photo-1581091215367-5c6d0d6c7c6a") center/cover;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 32px;
+    text-shadow: 0 0 10px black;
+}
+
+/* CONTAINER */
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+}
+
+/* FORM */
+label {
+    display: block;
+    margin-top: 12px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+input, textarea, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+textarea {
+    resize: none;
+}
+
+button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: #0d2b54;
+    color: white;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+button:hover {
+    background: #09203e;
+}
+
+/* FOOTER */
+footer {
+    text-align: center;
+    padding: 15px;
+    font-size: 12px;
+    color: #666;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">POLICE NATIONALE</div>
+    <nav>
+        <a href="#">Accueil</a>
+        <a href="#">Recrutement</a>
+        <a href="#">Métiers</a>
+        <a href="#">Contact</a>
+    </nav>
+</header>
+
+<div class="hero">
+    Rejoindre la Police Nationale
+</div>
+
+<div class="container">
+
+    <h2>Formulaire de candidature RP</h2>
+    <p>Veuillez remplir les informations ci-dessous pour déposer votre candidature.</p>
+
+    <form>
+
+        <label>Nom</label>
+        <input type="text" placeholder="Votre nom">
+
+        <label>Prénom</label>
+        <input type="text" placeholder="Votre prénom">
+
+        <label>Âge</label>
+        <input type="number" placeholder="Votre âge">
+
+        <label>Expérience RP</label>
+        <textarea rows="3" placeholder="Décrivez votre expérience RP"></textarea>
+
+        <label>Motivations</label>
+        <textarea rows="4" placeholder="Pourquoi voulez-vous rejoindre la police ?"></textarea>
+
+        <label>Disponibilités</label>
+        <select>
+            <option>Matin</option>
+            <option>Après-midi</option>
+            <option>Soir</option>
+            <option>Tout le temps</option>
+        </select>
+
+        <label>Avez-vous déjà été sanctionné RP ?</label>
+        <select>
+            <option>Non</option>
+            <option>Oui</option>
+        </select>
+
+        <button type="button" onclick="envoyer()">Envoyer la candidature</button>
+
+    </form>
+
+</div>
+
+<footer>
+    © Police Nationale RP - Recrutement officiel
+</footer>
+
+<script>
+function envoyer() {
+    alert("Votre candidature a été envoyée avec succès !");
+}
+</script>
+
+</body>
+</html>

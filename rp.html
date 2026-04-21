@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Dossier de l' etat CHILL RP</title>
+
+<style>
+body {
+    background:#020617;
+    font-family:Consolas, monospace;
+    color:#e5e7eb;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+}
+
+.box {
+    width:520px;
+    background:#0f172a;
+    border:1px solid #1e293b;
+    border-radius:12px;
+    padding:25px;
+    box-shadow:0 0 30px rgba(56,189,248,.25);
+}
+
+h1 { text-align:center; color:#38bdf8; }
+
+input, textarea, select {
+    width:100%;
+    background:#020617;
+    border:1px solid #334155;
+    border-radius:8px;
+    padding:10px;
+    color:#e5e7eb;
+    margin-top:8px;
+}
+
+button {
+    width:100%;
+    margin-top:12px;
+    padding:10px;
+    background:linear-gradient(135deg,#38bdf8,#0ea5e9);
+    border:none;
+    border-radius:8px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.section {
+    margin-top:20px;
+    border-top:1px solid #1e293b;
+    padding-top:15px;
+}
+
+.hidden { display:none; }
+.error { color:#f87171; text-align:center; }
+
+img {
+    width:100%;
+    margin-top:10px;
+    border-radius:8px;
+}
+
+/* ===== CARTE ID ===== */
+.id-card {
+    display:flex;
+    gap:15px;
+    border:2px solid #38bdf8;
+    border-radius:12px;
+    padding:12px;
+    background:#020617;
+    margin-top:15px;
+}
+
+.id-card img.photo {
+    width:110px;
+    height:140px;
+    object-fit:cover;
+    border-radius:8px;
+    border:1px solid #334155;
+}
+
+.id-info {
+    font-size:13px;
+    flex:1;
+}
+
+.id-name {
+    font-size:16px;
+    font-weight:bold;
+    color:#38bdf8;
+    margin-bottom:6px;
+}
+
+.signature {
+    margin-top:8px;
+}
+
+.signature img {
+    max-width:140px;
+    max-height:40px;
+    background:#fff;
+    border-radius:4px;
+    padding:2px;
+}
+
+.uuid {
+    color:#38bdf8;
+    font-size:11px;
+    word-break:break-all;
+    margin-top:4px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+
+<!-- LOGIN -->
+<div id="loginBox">
+    <h1>ACCÈS ADMIN</h1>
+    <input id="user" placeholder="Utilisateur">
+    <input id="pass" type="password" placeholder="Mot de passe">
+    <button onclick="doLogin()">Connexion</button>
+    <div class="error" id="loginError"></div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+    <h1>BASE DE DONNÉES RP</h1>
+
+    <input id="discordId" placeholder="ID Discord">
+    <button onclick="loadProfile()">Charger / Créer</button>
+
+    <div class="section hidden" id="profile">
+
+        <button onclick="generate()">Générer identité</button>
+
+        <input id="prenom" placeholder="Prénom">
+        <input id="nom" placeholder="Nom">
+        <input id="age" type="number" placeholder="Âge">
+
+        <select id="genre">
+            <option>Homme</option>
+            <option>Femme</option>
+        </select>
+
+        <select id="role">
+            <option>Recherché</option>
+            <option value="ambulancier">Ambulancier</option>
+            <option value="policier">Policier</option>
+            <option value="citoyen">Citoyen</option>
+            <option value="adac">ADAC</option>
+            <option value="pompier">Pompier</option>
+            <option value="developpeur">Développeur</option>
+            <option value="livreur">Livreur</option>
+            <option value="chauffeur">Chauffeur</option>
+            <option value="criminel">Criminel</option>
+            <option value="banquier">Banquier</option>
+            <option value="caissier">Caissier</option>
+            <option value="bijoutier">Bijoutier</option>
+        </select>
+
+        <textarea id="background" placeholder="Background RP"></textarea>
+
+        <input id="image" placeholder="Image (URL)">
+        <img id="preview">
+
+        <!-- NOUVEAU CHAMP SIGNATURE -->
+        <input id="signature" placeholder="Signature (URL image)">
+
+        <textarea id="notes" placeholder="Notes RP"></textarea>
+        <textarea id="casier" placeholder="Casier Juridique"></textarea>
+
+        <!-- CARTE ID RP -->
+        <div class="section hidden" id="idCard">
+            <div class="id-card">
+                <img class="photo" id="cardImage">
+                <div class="id-info">
+                    <div class="id-name" id="cName">—</div>
+                    <div><b>Âge :</b> <span id="cAge">—</span></div>
+                    <div><b>Genre :</b> <span id="cGenre">—</span></div>
+                    <div><b>Rôle :</b> <span id="cRole">—</span></div>
+                    <div><b>ID Discord :</b> <span id="cDiscord">—</span></div>
+                    <div class="uuid"><b>UUID :</b> <span id="cUUID">—</span></div>
+
+                    <div class="signature">
+                        <b>Signature :</b><br>
+                        <img id="cSignature">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="saveProfile()"> Sauvegarder</button>
+    </div>
+
+    <button onclick="logout()">Déconnexion</button>
+</div>
+
+</div>
+
+<script>
+
+/* AUTH CHIFFRÉE SANS TOUCHER À L'AFFICHAGE */
+const ROOT_USER_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"; 
+const ROOT_PASS_HASH = "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f"; 
+
+
+async function hashString(str) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+async function doLogin() {
+    const userHash = await hashString(user.value);
+    const passHash = await hashString(pass.value);
+
+    if(userHash === ROOT_USER_HASH && passHash === ROOT_PASS_HASH) {
+        sessionStorage.setItem("logged", "true");
+        showApp();
+    } else {
+        loginError.textContent = "Accès refusé";
+    }
+}
+
+
+/* UUID PAR ID DISCORD */
+function getUUID(id) {
+    let key = "uuid_" + id;
+    let uuid = localStorage.getItem(key);
+    if (!uuid) {
+        uuid = crypto.randomUUID();
+        localStorage.setItem(key, uuid);
+    }
+    return uuid;
+}
+
+
+function showApp() {
+    loginBox.style.display = "none";
+    app.classList.remove("hidden");
+}
+
+/* PROFILS */
+function loadProfile() {
+    const id = discordId.value;
+    if (!id) return;
+
+    const data = JSON.parse(localStorage.getItem("rp_" + id)) || {};
+
+    prenom.value = data.prenom || "";
+    nom.value = data.nom || "";
+    age.value = data.age || "";
+    genre.value = data.genre || "Homme";
+    role.value = data.role || "Citoyen";
+    background.value = data.background || "";
+    image.value = data.image || "";
+    signature.value = data.signature || "";
+    notes.value = data.notes || "";
+    casier.value = data.casier || "";
+    preview.src = data.image || "";
+
+    profile.classList.remove("hidden");
+    updateCard();
+}
+
+/* SAUVEGARDE */
+function saveProfile() {
+    const id = discordId.value;
+    if (!id) return;
+
+    const data = {
+        uuid: getUUID(id),
+        prenom: prenom.value,
+        nom: nom.value,
+        age: age.value,
+        genre: genre.value,
+        role: role.value,
+        background: background.value,
+        image: image.value,
+        signature: signature.value,
+        notes: notes.value,
+        casier: casier.value,
+        updated: new Date().toISOString()
+    };
+
+    localStorage.setItem("rp_" + id, JSON.stringify(data));
+    preview.src = data.image;
+    updateCard();
+    alert("Dossier RP sauvegardé");
+}
+
+/* CARTE */
+function updateCard() {
+    if (!discordId.value) return;
+
+    cName.textContent = (prenom.value || "") + " " + (nom.value || "");
+    cAge.textContent = age.value || "—";
+    cGenre.textContent = genre.value || "—";
+    cRole.textContent = role.value || "—";
+    cDiscord.textContent = discordId.value;
+    cUUID.textContent = getUUID(discordId.value);
+
+    cardImage.src = image.value || "https://via.placeholder.com/110x140";
+    cSignature.src = signature.value || "";
+
+    idCard.classList.remove("hidden");
+}
+
+/* LIVE UPDATE */
+["prenom","nom","age","genre","role","image","signature"].forEach(i=>{
+    document.getElementById(i).addEventListener("input", updateCard);
+});
+
+/* GENERATEUR */
+function generate() {
+    const prenoms = ["Alex","Lucas","Oscar","Nathan","Éthan"];
+    const noms = ["Durand","Moreau","Leroy","Martin","Bernard"];
+    const jobs = ["Ambulancier","policier","citoyen","adac","pompier","developpeur","livreur","chauffeur","criminel","banquier","caissier","bijoutier"];
+
+    prenom.value = prenoms[Math.floor(Math.random()*prenoms.length)];
+    nom.value = noms[Math.floor(Math.random()*noms.length)];
+    age.value = Math.floor(Math.random()*30)+18;
+    genre.value = "Homme";
+    role.value = "Citoyen";
+    background.value = "Ancien " + jobs[Math.floor(Math.random()*jobs.length)] + " avec un passé discret.";
+
+    updateCard();
+}
+</script>
+
+</body>
+</html>
