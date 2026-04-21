@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<!-- saved from url=(0037)https://foodlyclient.github.io/test-/ -->
+<html lang="fr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<title>Fouille Archéologique - Pinceau Révisé</title>
+<style>
+body {
+  margin:0;
+  background:#0f172a;
+  color:white;
+  font-family:monospace;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+}
+#gameContainer{
+  position:relative;
+}
+canvas{
+  border:2px solid #334155;
+  background:#0f172a;
+}
+#gui{
+  margin-left:10px;
+  width:250px;
+  background:#1e293b;
+  padding:10px;
+  border-radius:8px;
+  font-size:14px;
+}
+#gui h2{
+  margin-top:0;
+  font-size:18px;
+  text-align:center;
+}
+button{
+  margin:5px;
+  padding:5px 8px;
+  font-size:14px;
+  cursor:pointer;
+}
+#brushInterface{
+  position:absolute;
+  top:20px;
+  left:50px;
+  width:450px;
+  height:500px;
+  background:#1e293b;
+  border-radius:8px;
+  padding:10px;
+  display:none;
+  z-index:10;
+  overflow-y:auto;
+}
+#brushInterface h2{
+  text-align:center;
+  margin-top:0;
+}
+.objItem{
+  margin:10px 0;
+  padding:5px;
+  background:#334155;
+  border-radius:5px;
+  position:relative;
+  height:80px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+}
+.objItem canvas{
+  border:1px solid #222;
+  margin-right:10px;
+}
+.objInfo{
+  flex:1;
+  display:none;
+  font-size:12px;
+}
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <canvas id="game" width="800" height="600"></canvas>
+</div>
+
+<div id="gui">
+  <h2>🖌️ Objets trouvés</h2>
+  <div id="objectsList">Aucun objet trouvé.</div>
+  <button id="openBrush">🎨 Nettoyer avec pinceau</button>
+</div>
+
+<div id="brushInterface">
+  <h2>🖌️ Dépoussiérage</h2>
+  <div id="brushObjects">Aucun objet.</div>
+  <button id="closeBrush">❌ Fermer</button>
+</div>
+
+<script>
+let savedRows = {};
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+ctx.font="20px monospace";
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+
+const tile=20;
+const cols=canvas.width/tile;
+const rows=canvas.height/tile;
+let depthOffset=0;
+
+const objectsInfo={
+  "vase":{emoji:"🏺",name:"Vase antique",desc:"Vase grec antique utilisé pour stocker huile et vin."},
+  "statue":{emoji:"🗿",name:"Statue ancienne",desc:"Statue en pierre provenant d'un ancien temple."},
+  "fossile":{emoji:"🦴",name:"Fossile",desc:"Os fossilisé datant de millions d'années."},
+  "coin":{emoji:"🪙",name:"Pièce antique",desc:"Pièce utilisée dans l'empire romain."},
+  "mask":{emoji:"🎭",name:"Masque rituel",desc:"Masque utilisé lors de cérémonies anciennes."},
+  "tablet":{emoji:"📜",name:"Tablette écrite",desc:"Fragment d'écriture antique."},
+  "ring":{emoji:"💍",name:"Anneau ancien",desc:"Bijou porté par une ancienne civilisation."},
+  "idol":{emoji:"🗿",name:"Idole sacrée",desc:"Objet religieux ancien."},
+  "crystal":{emoji:"🔮",name:"Cristal ancien",desc:"Cristal utilisé dans certains rituels."},
+  "skull":{emoji:"💀",name:"Crâne ancien",desc:"Vestige humain très ancien."}
+};
+
+
+function generateRow(y){
+
+  if(savedRows[y]) return JSON.parse(JSON.stringify(savedRows[y]));
+
+  let row=[];
+
+  for(let x=0;x<cols;x++){
+
+    if(x===0 || x===cols-1) row.push("ladder");
+
+    else if(y<2) row.push("air");
+
+    else{
+
+      let r=Math.random();
+
+      if(r<0.0003) row.push("idol");
+      else if(r<0.0006) row.push("crystal");
+      else if(r<0.001) row.push("skull");
+      else if(r<0.0015) row.push("ring");
+      else if(r<0.002) row.push("mask");
+      else if(r<0.003) row.push("coin");
+      else if(r<0.004) row.push("tablet");
+      else if(r<0.005) row.push("statue");
+      else if(r<0.007) row.push("fossile");
+      else if(r<0.009) row.push("vase");
+
+      else if(y%6<2) row.push("soil1");
+      else if(y%6<4) row.push("soil2");
+      else row.push("soil3");
+      // dinosaures géants sous terre
+if(y > 350 && Math.random() < 0.002){
+    // forme simple d’un squelette T-Rex
+    // 💀 tête, 🦴 corps
+    const dinoPattern = [
+        ["air","air","💀","air","air"],
+        ["air","🦴","🦴","🦴","air"],
+        ["🦴","air","🦴","air","🦴"],
+    ];
+    for(let dy=0; dy<dinoPattern.length; dy++){
+        for(let dx=0; dx<dinoPattern[dy].length; dx++){
+            const ry = y + dy;
+            const rx = Math.floor(cols/2) - 2 + dx; // centrer
+            if(!savedRows[ry]) savedRows[ry] = [];
+            if(dinoPattern[dy][dx] != "air") savedRows[ry][rx] = "dino"; 
+        }
+    }
+}
+
+    }
+  }
+
+  savedRows[y]=JSON.parse(JSON.stringify(row));
+
+  return row;
+}
+let world=[];
+for(let y=0;y<rows;y++) world.push(generateRow(y));
+
+let player={x:Math.floor(cols/2),y:1};
+let keys={};
+let collected={};
+
+let moveCooldown=0;
+const MOVE_DELAY=5;
+
+document.addEventListener("keydown",e=>keys[e.key]=true);
+document.addEventListener("keyup",e=>keys[e.key]=false);
+
+function isDiggable(type) {
+    return type.startsWith("soil") || type in objectsInfo || type === "dino";
+}
+
+function update(){
+  if(world[player.y+1] && world[player.y+1][player.x]=="air") player.y++;
+  if(moveCooldown>0){ moveCooldown--; return; }
+
+  if(keys["ArrowDown"] && world[player.y+1] && isDiggable(world[player.y+1][player.x])){
+    collect(world[player.y+1][player.x]);
+    world[player.y+1][player.x]="air";
+savedRows[player.y+1+depthOffset][player.x]="air";    
+player.y++;
+    moveCooldown=MOVE_DELAY;
+  }
+
+  if(keys["ArrowLeft"] && world[player.y][player.x-1]){
+    if(isDiggable(world[player.y][player.x-1])){
+      collect(world[player.y][player.x-1]);
+      world[player.y][player.x-1]="air";
+      savedRows[player.y+depthOffset][player.x-1]="air";
+      player.x--;
+    } else move(-1,0);
+    moveCooldown=MOVE_DELAY;
+  }
+
+  if(keys["ArrowRight"] && world[player.y][player.x+1]){
+    if(isDiggable(world[player.y][player.x+1])){
+      collect(world[player.y][player.x+1]);
+      world[player.y][player.x+1]="air";
+       savedRows[player.y+depthOffset][player.x+1]="air";
+      player.x++;
+    } else move(1,0);
+    moveCooldown=MOVE_DELAY;
+  }
+
+  if(keys["ArrowUp"] && world[player.y][player.x]=="ladder"){ move(0,-1); moveCooldown=MOVE_DELAY; }
+
+  if(player.y>=rows-3){
+    world.shift();
+    world.push(generateRow(depthOffset+rows));
+    depthOffset++;
+    player.y--;
+  }
+}
+
+function collect(type){
+  if(type in objectsInfo){
+    if(!collected[type]){
+      let size=5;
+      let grid=[];
+      for(let i=0;i<size;i++){
+        let row=[];
+        for(let j=0;j<size;j++) row.push(true);
+        grid.push(row);
+      }
+      collected[type]={grid,emoji:objectsInfo[type].emoji,name:objectsInfo[type].name,desc:objectsInfo[type].desc,particles:[]};
+    }
+    updateMainGUI();
+  }
+}
+
+const gui=document.getElementById("objectsList");
+const brushInterface=document.getElementById("brushInterface");
+const brushObjects=document.getElementById("brushObjects");
+const openBrushBtn=document.getElementById("openBrush");
+const closeBrushBtn=document.getElementById("closeBrush");
+
+let mouse={x:0,y:0,down:false};
+
+openBrushBtn.addEventListener("click",()=>{
+  brushInterface.style.display="block";
+  updateBrushGUI();
+});
+
+closeBrushBtn.addEventListener("click",()=>{ brushInterface.style.display="none"; });
+
+document.addEventListener("mousemove",e=>{
+  mouse.x=e.clientX;
+  mouse.y=e.clientY;
+});
+document.addEventListener("mousedown",()=>mouse.down=true);
+document.addEventListener("mouseup",()=>mouse.down=false);
+
+function updateMainGUI(){
+  gui.innerHTML="";
+  if(Object.keys(collected).length===0){ gui.textContent="Aucun objet trouvé."; return; }
+  for(let type in collected){
+    let obj=collected[type];
+    gui.innerHTML+=`${obj.emoji} ${obj.name}<br>`;
+  }
+}
+
+function updateBrushGUI(){
+  brushObjects.innerHTML="";
+  if(Object.keys(collected).length===0){ brushObjects.textContent="Aucun objet à nettoyer."; return; }
+
+  for(let type in collected){
+    let obj=collected[type];
+    let div=document.createElement("div");
+    div.className="objItem";
+
+    let innerCanvas=document.createElement("canvas");
+    innerCanvas.width=120;
+    innerCanvas.height=80;
+    div.appendChild(innerCanvas);
+
+    let infoSpan=document.createElement("div");
+    infoSpan.className="objInfo";
+    infoSpan.innerHTML=`<b>${obj.name}</b><br>${obj.desc}`;
+    div.appendChild(infoSpan);
+    brushObjects.appendChild(div);
+
+    let ictx=innerCanvas.getContext("2d");
+    let size=obj.grid.length;
+    let cubeW=innerCanvas.width/size;
+    let cubeH=innerCanvas.height/size;
+
+    function draw(){
+      ictx.clearRect(0,0,innerCanvas.width,innerCanvas.height);
+      for(let i=0;i<size;i++){
+        for(let j=0;j<size;j++){
+          ictx.fillStyle=obj.grid[i][j] ? "#FFD700" : "#0f172a";
+          ictx.fillRect(j*cubeW,i*cubeH,cubeW,cubeH);
+        }
+      }
+      obj.particles.forEach(p=>{
+        ictx.fillStyle=p.color;
+        ictx.fillRect(p.x,p.y,p.size,p.size);
+        p.x+=p.vx; p.y+=p.vy; p.vy+=0.2;
+      });
+      obj.particles=obj.particles.filter(p=>p.y<innerCanvas.height);
+
+if(obj.grid.flat().every(v=>!v)){
+
+  infoSpan.style.display="block";
+
+  ictx.clearRect(0,0,innerCanvas.width,innerCanvas.height);
+
+  ictx.font="40px monospace";
+  ictx.textAlign="center";
+  ictx.textBaseline="middle";
+  ictx.fillText(obj.emoji,innerCanvas.width/2,innerCanvas.height/2);
+
+}
+
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    div.addEventListener("mousemove",e=>{
+      if(!mouse.down) return;
+      const rect=innerCanvas.getBoundingClientRect();
+      const mx=e.clientX-rect.left;
+      const my=e.clientY-rect.top;
+      const ix=Math.floor(mx/cubeW);
+      const iy=Math.floor(my/cubeH);
+      if(ix>=0 && ix<size && iy>=0 && iy<size && obj.grid[iy][ix]){
+        obj.grid[iy][ix]=false;
+        for(let k=0;k<5;k++){
+          obj.particles.push({
+            x:ix*cubeW + Math.random()*cubeW,
+            y:iy*cubeH + Math.random()*cubeH,
+            vx:(Math.random()-0.5)*2,
+            vy:-Math.random()*2,
+            size:2+Math.random()*2,
+            color:"#FFD700"
+          });
+        }
+      }
+    });
+  }
+}
+
+function move(dx,dy){
+
+  let nx = player.x + dx
+  let ny = player.y + dy
+
+  if(nx < 0 || nx >= cols) return
+
+  if(ny < 0){
+    player.y = 0
+    return
+  }
+
+  if(ny >= rows) return
+
+  if(world[ny][nx] == "air" || world[ny][nx] == "ladder"){
+    player.x = nx
+    player.y = ny
+  }
+
+}
+
+function drawTile(x,y,type){
+  let emoji="";
+  switch(type){
+    case "soil1": emoji="🟫"; break;
+    case "soil2": emoji="🟧"; break;
+    case "soil3": emoji="🟤"; break;
+    case "ladder": emoji="🪜"; break;
+    case "vase": emoji="🏺"; break;
+    case "statue": emoji="🗿"; break;
+    case "fossile": emoji="🦴"; break;
+    case "coin": emoji="🪙"; break;
+case "mask": emoji="🎭"; break;
+case "tablet": emoji="📜"; break;
+case "ring": emoji="💍"; break;
+case "idol": emoji="🗿"; break;
+case "crystal": emoji="🔮"; break;
+case "skull": emoji="💀"; break;
+case "dino": emoji = "🦴"; break; // tous les os seront 🦴, la tête peut être 💀
+    default: emoji=" "; break;
+  }
+  if(type!="air") ctx.fillText(emoji, x*tile+tile/2, y*tile+tile/2);
+if(type == "dino"){
+    // récupérer le y réel pour savoir si c’est la tête
+    if(savedRows[depthOffset + y] && savedRows[depthOffset + y][x] === "dino" && y % rows == 0){
+        emoji = "💀"; // tête du squelette
+    } else {
+        emoji = "🦴";
+    }
+}
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      drawTile(x,y,world[y][x]);
+    }
+  }
+  ctx.fillStyle="#22c55e";
+  ctx.fillText("⛏️🤖", player.x*tile+tile/2, player.y*tile+tile/2);
+}
+
+function gameLoop(){ update(); draw(); requestAnimationFrame(gameLoop); }
+gameLoop();
+let velocityY = 0;
+</script>
+
+<div id="booster_root"><template shadowrootmode="open"><div><!----><style>.noUi-target,.noUi-target *{-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;-ms-touch-action:none;touch-action:none;-ms-user-select:none;-moz-user-select:none;user-select:none;-moz-box-sizing:border-box;box-sizing:border-box}.noUi-target{position:relative}.noUi-base,.noUi-connects{width:100%;height:100%;position:relative;z-index:1}.noUi-connects{overflow:hidden;z-index:0}.noUi-connect,.noUi-origin{will-change:transform;position:absolute;z-index:1;top:0;right:0;height:100%;width:100%;-ms-transform-origin:0 0;-webkit-transform-origin:0 0;-webkit-transform-style:preserve-3d;transform-origin:0 0;transform-style:flat}.noUi-txt-dir-rtl.noUi-horizontal .noUi-origin{left:0;right:auto}.noUi-vertical .noUi-origin{top:-100%;width:0}.noUi-horizontal .noUi-origin{height:0}.noUi-handle{-webkit-backface-visibility:hidden;backface-visibility:hidden;position:absolute}.noUi-touch-area{height:100%;width:100%}.noUi-state-tap .noUi-connect,.noUi-state-tap .noUi-origin{-webkit-transition:transform .3s;transition:transform .3s}.noUi-state-drag *{cursor:inherit!important}.noUi-horizontal{height:18px}.noUi-horizontal .noUi-handle{width:34px;height:28px;right:-17px;top:-6px}.noUi-vertical{width:18px}.noUi-vertical .noUi-handle{width:28px;height:34px;right:-6px;bottom:-17px}.noUi-txt-dir-rtl.noUi-horizontal .noUi-handle{left:-17px;right:auto}.noUi-target{background:#FAFAFA;border-radius:4px;border:1px solid #D3D3D3;box-shadow:inset 0 1px 1px #F0F0F0,0 3px 6px -5px #BBB}.noUi-connects{border-radius:3px}.noUi-connect{background:#3FB8AF}.noUi-draggable{cursor:ew-resize}.noUi-vertical .noUi-draggable{cursor:ns-resize}.noUi-handle{border:1px solid #D9D9D9;border-radius:3px;background:#FFF;cursor:default;box-shadow:inset 0 0 1px #FFF,inset 0 1px 7px #EBEBEB,0 3px 6px -3px #BBB}.noUi-active{box-shadow:inset 0 0 1px #FFF,inset 0 1px 7px #DDD,0 3px 6px -3px #BBB}.noUi-handle:after,.noUi-handle:before{content:"";display:block;position:absolute;height:14px;width:1px;background:#E8E7E6;left:14px;top:6px}.noUi-handle:after{left:17px}.noUi-vertical .noUi-handle:after,.noUi-vertical .noUi-handle:before{width:14px;height:1px;left:6px;top:14px}.noUi-vertical .noUi-handle:after{top:17px}[disabled] .noUi-connect{background:#B8B8B8}[disabled] .noUi-handle,[disabled].noUi-handle,[disabled].noUi-target{cursor:not-allowed}.noUi-pips,.noUi-pips *{-moz-box-sizing:border-box;box-sizing:border-box}.noUi-pips{position:absolute;color:#999}.noUi-value{position:absolute;white-space:nowrap;text-align:center}.noUi-value-sub{color:#ccc;font-size:10px}.noUi-marker{position:absolute;background:#CCC}.noUi-marker-sub{background:#AAA}.noUi-marker-large{background:#AAA}.noUi-pips-horizontal{padding:10px 0;height:80px;top:100%;left:0;width:100%}.noUi-value-horizontal{-webkit-transform:translate(-50%,50%);transform:translate(-50%,50%)}.noUi-rtl .noUi-value-horizontal{-webkit-transform:translate(50%,50%);transform:translate(50%,50%)}.noUi-marker-horizontal.noUi-marker{margin-left:-1px;width:2px;height:5px}.noUi-marker-horizontal.noUi-marker-sub{height:10px}.noUi-marker-horizontal.noUi-marker-large{height:15px}.noUi-pips-vertical{padding:0 10px;height:100%;top:0;left:100%}.noUi-value-vertical{-webkit-transform:translate(0,-50%);transform:translate(0,-50%);padding-left:25px}.noUi-rtl .noUi-value-vertical{-webkit-transform:translate(0,50%);transform:translate(0,50%)}.noUi-marker-vertical.noUi-marker{width:5px;height:2px;margin-top:-1px}.noUi-marker-vertical.noUi-marker-sub{width:10px}.noUi-marker-vertical.noUi-marker-large{width:15px}.noUi-tooltip{display:block;position:absolute;border:1px solid #D9D9D9;border-radius:3px;background:#fff;color:#000;padding:5px;text-align:center;white-space:nowrap}.noUi-horizontal .noUi-tooltip{-webkit-transform:translate(-50%,0);transform:translate(-50%,0);left:50%;bottom:120%}.noUi-vertical .noUi-tooltip{-webkit-transform:translate(0,-50%);transform:translate(0,-50%);top:50%;right:120%}.noUi-horizontal .noUi-origin>.noUi-tooltip{-webkit-transform:translate(50%,0);transform:translate(50%,0);left:auto;bottom:10px}.noUi-vertical .noUi-origin>.noUi-tooltip{-webkit-transform:translate(0,-18px);transform:translate(0,-18px);top:auto;right:28px}
+.rel[data-v-1a83ae5a]{--rel: 1px}.rel.vertical.s[data-v-1a83ae5a]{--rel: 0.11vh}.rel.vertical.m[data-v-1a83ae5a]{--rel: 0.097vh}.rel.vertical.l[data-v-1a83ae5a]{--rel: 0.0836vh}.app-range-slider[data-v-1a83ae5a]{height:100%;width:100%}.app-range-slider[data-v-1a83ae5a] .noUi-target{border:none}.app-range-slider[data-v-1a83ae5a] .noUi-vertical{height:100%;width:2px}.app-range-slider[data-v-1a83ae5a] .noUi-vertical .noUi-handle{height:16px;width:16px;right:-7px;bottom:-16px}.app-range-slider[data-v-1a83ae5a] .noUi-vertical.noUi-target{padding:8px 0}.app-range-slider[data-v-1a83ae5a] .noUi-vertical .noUi-connects{margin:-8px 0;height:calc(100% + 16px)}.app-range-slider[data-v-1a83ae5a] .noUi-vertical .noUi-base:after{content:"";position:absolute;top:0;left:-7px;height:calc(100% + 16px);width:16px;background:rgba(0,0,0,0)}.app-range-slider[data-v-1a83ae5a] .noUi-horizontal{width:100%;height:2px}.app-range-slider[data-v-1a83ae5a] .noUi-horizontal .noUi-handle{width:16px;height:16px;top:-7px;right:-8px}.app-range-slider[data-v-1a83ae5a] .noUi-horizontal.noUi-target{padding:0 8px}.app-range-slider[data-v-1a83ae5a] .noUi-horizontal .noUi-connects{margin:0 -8px;width:calc(100% + 16px)}.app-range-slider[data-v-1a83ae5a] .noUi-horizontal .noUi-base:after{content:"";position:absolute;top:-7px;left:-8px;width:calc(100% + 16px);height:16px;background:rgba(0,0,0,0)}.app-range-slider[data-v-1a83ae5a] .noUi-connects{background:#f0efff}.app-range-slider[data-v-1a83ae5a] .noUi-connect{background:#7f75ff}.app-range-slider[data-v-1a83ae5a] .noUi-handle{background:#847aff;border-radius:50%;box-shadow:none;border:none;outline:none}.app-range-slider[data-v-1a83ae5a] .noUi-handle:after,.app-range-slider[data-v-1a83ae5a] .noUi-handle:before{display:none}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-target{border:none}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-vertical{height:100%;width:2px}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-vertical .noUi-handle{height:16px;width:16px;right:-7px;bottom:-16px}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-vertical.noUi-target{padding:8px 0}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-vertical .noUi-connects{margin:-8px 0;height:calc(100% + 16px)}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-vertical .noUi-base:after{content:"";position:absolute;top:0;left:-7px;height:calc(100% + 16px);width:16px;background:rgba(0,0,0,0)}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-horizontal{width:100%;height:2px}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-horizontal .noUi-handle{width:16px;height:16px;top:-7px;right:-8px}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-horizontal.noUi-target{padding:0 8px}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-horizontal .noUi-connects{margin:0 -8px;width:calc(100% + 16px)}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-horizontal .noUi-base:after{content:"";position:absolute;top:-7px;left:-8px;width:calc(100% + 16px);height:16px;background:rgba(0,0,0,0)}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-connects{background:#f0efff}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-connect{background:#7f75ff}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-handle{background:#847aff;border-radius:50%;box-shadow:none;border:none;outline:none}.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-handle:after,.app-range-slider.horizontal[data-v-1a83ae5a] .noUi-handle:before{display:none}
+.app-root[data-v-61e19d45]{height:100px;position:fixed;top:20px;right:20px;z-index:1000000;padding:20px 25px;border-radius:14px;background:rgba(129,120,255,.5);backdrop-filter:blur(4px);transition:opacity .2s ease;transition-delay:1.5s;opacity:.1}.app-root[data-v-61e19d45]:hover{opacity:1;transition-delay:0s}
+</style></div></template></div></body></html>
